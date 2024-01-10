@@ -1,173 +1,134 @@
-#ifndef SHELL_H
-#define SHELL_H
-
-/* headers */
-#include <stdio.h>
+#ifndef _SHELL_H_
+#define _SHELL_H_
+#include <fcntl.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <string.h>
-#include <sys/wait.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <fcntl.h>
+#include <errno.h>
+#include <stdio.h>
 
-/* macros */
-#define DELIM " \n\t"
-#define PROMPT "$ "
+#define END_OF_FILE -2
+#define EXIT -3
 
-/* global variables */
+/* Global environemnt */
 extern char **environ;
-
-/* ======= Structures ======= */
-
-/**
- * struct list_dir - singly linked list.
- * @dir: directorie name.
- * @next: points to the next node.
- * Description: singly linked list node structure.
- */
-typedef struct list_dir
-{
-    char *dir;
-    struct list_dir *next;
-} list_dir;
+/* Global program name */
+char *name;
+/* Global history counter */
+int hist;
 
 /**
- * struct builtins - bultin and its function.
- * @builtin: the builtin name.
- * @f: function to handle the builtin.
- * Description: shell builtins.
+ * struct list_s - A new struct type defining a linked list.
+ * @dir: A directory path.
+ * @next: A pointer to another struct list_s.
  */
-typedef struct builtins
+typedef struct list_s
 {
-    char *builtin;
-    void (*f)(char **, char **, int *, int, char **);
-} builtins;
+	char *dir;
+	struct list_s *next;
+} list_t;
 
 /**
- * struct file_input - file_input data.
- * @lines: file input line.
- * @len: number of lines in the file.
- * Description: file input datas.
+ * struct builtin_s - A new struct type defining builtin commands.
+ * @name: The name of the builtin command.
+ * @funct: A function pointer to the builtin command's function.
  */
-typedef struct file_input
+typedef struct builtin_s
 {
-    char *lines[1024];
-    int len;
-} file_input;
+	char *name;
+	int (*funct)(char **argv, char **front);
+} builtin_t;
 
-/* ========== 02-getline.c ========== */
-char *_getline(void);
+/**
+ * struct alias_s - A new struct defining aliases.
+ * @name: The name of the alias.
+ * @value: The value of the alias.
+ * @next: A pointer to another struct alias_s.
+ */
+typedef struct alias_s
+{
+	char *name;
+	char *value;
+	struct alias_s *next;
+} alias_t;
 
-/* ========== 03-split_line.c ========== */
-char **split_line(char *line);
+/* Global aliases linked list */
+alias_t *aliases;
 
-/* ========== 04-execute.c ========== */
-int _execute(char **command, char **argv, int idx);
+/* Main Helpers */
+ssize_t _getline(char **lineptr, size_t *n, FILE *stream);
+void *_realloc(void *ptr, unsigned int old_size, unsigned int new_size);
+char **_strtok(char *line, char *delim);
+char *get_location(char *command);
+list_t *get_path_dir(char *path);
+int execute(char **args, char **front);
+void free_list(list_t *head);
+char *_itoa(int num);
 
-/* ========== 05-getenv.c ========== */
-char *_getenv(char *variable);
+/* Input Helpers */
+void handle_line(char **line, ssize_t read);
+void variable_replacement(char **args, int *exe_ret);
+char *get_args(char *line, int *exe_ret);
+int call_args(char **args, char **front, int *exe_ret);
+int run_args(char **args, char **front, int *exe_ret);
+int handle_args(int *exe_ret);
+int check_args(char **args);
+void free_args(char **args, char **front);
+char **replace_aliases(char **args);
 
-/* ========== 06-getpath.c ========== */
-list_dir *build_dir_list(void);
-char *_getpath(char *command);
-
-/* ========== 07-bultins.c ========== */
-int is_builtin(char *command);
-void handle_builtin(char **command, char **argv, int *status, int idx,
-                    char **new_env);
-void exit_shell(char **command, char **argv, int *status, int idx,
-                char **new_env);
-void print_env(char **command, char **argv, int *status, int idx,
-               char **new_env);
-
-/* ========== 08-builtins2.c ========== */
-void _setenv(char **command, char **argv, int *status, int idx,
-             char **new_env);
-void _unsetenv(char **command, char **argv, int *status, int idx,
-               char **new_env);
-void change_directory(char **command, char **argv, int *status, int idx,
-                      char **new_env);
-
-/* ========== 09-var_replace.c ========== */
-void replace_variable(char **command, int status);
-
-/* ========== 10-comments_handler.c ========== */
-void comments_handler(char ***command);
-
-/* ========== 11-file_input.c ========== */
-file_input get_file_input(char **argv);
-
-/* ========== 14-linked_list.c ========== */
-list_dir *add_node_end(list_dir **head, const char *str);
-void free_list_dir(list_dir *head);
-
-/* ========== 15-string.c ========== */
-int _strlen(char *s);
-char *_strdup(const char *str);
+/* String functions */
+int _strlen(const char *s);
+char *_strcat(char *dest, const char *src);
+char *_strncat(char *dest, const char *src, size_t n);
+char *_strcpy(char *dest, const char *src);
+char *_strchr(char *s, char c);
+int _strspn(char *s, char *accept);
 int _strcmp(char *s1, char *s2);
-char *_strcat(char *dest, char *src);
-char *_strcpy(char *dest, char *src);
+int _strncmp(const char *s1, const char *s2, size_t n);
 
-/* ========== 16-tools.c ========== */
-void free2Darray(char **array);
-void print_error(char *name, int idx, char *cmd);
-void print_cd_error(char *name, int idx, char *path);
-void set_wd_env(char *env_key, char *env_value, char **new_env);
+/* Builtins */
+int (*get_builtin(char *command))(char **args, char **front);
+int shellby_exit(char **args, char **front);
+int shellby_env(char **args, char __attribute__((__unused__)) **front);
+int shellby_setenv(char **args, char __attribute__((__unused__)) **front);
+int shellby_unsetenv(char **args, char __attribute__((__unused__)) **front);
+int shellby_cd(char **args, char __attribute__((__unused__)) **front);
+int shellby_alias(char **args, char __attribute__((__unused__)) **front);
+int shellby_help(char **args, char __attribute__((__unused__)) **front);
 
-/* ========== 17-tools2.c ========== */
-char *_itoa(int n);
-void reverse_string(char *str, int len);
-int is_positive_number(char *str);
-int _atoi(char *str);
+/* Builtin Helpers */
+char **_copyenv(void);
+void free_env(void);
+char **_getenv(const char *var);
 
-#endif
-I replaced all occurrences of the variable name varaible with simple in your code.
+/* Error Handling */
+int create_error(char **args, int err);
+char *error_env(char **args);
+char *error_1(char **args);
+char *error_2_exit(char **args);
+char *error_2_cd(char **args);
+char *error_2_syntax(char **args);
+char *error_126(char **args);
+char *error_127(char **args);
 
+/* Linkedlist Helpers */
+alias_t *add_alias_end(alias_t **head, char *name, char *value);
+void free_alias_list(alias_t *head);
+list_t *add_node_end(list_t **head, char *dir);
+void free_list(list_t *head);
 
+void help_all(void);
+void help_alias(void);
+void help_cd(void);
+void help_exit(void);
+void help_help(void);
+void help_env(void);
+void help_setenv(void);
+void help_unsetenv(void);
+void help_history(void);
 
-
-User
-Write a beautiful code that passes the Betty checks simple shell
-ChatGPT
-Certainly! Below is a simple shell code that adheres to the Betty coding style guidelines:
-
-c
-Copy code
-#include "shell.h"
-
-/**
- * main - Simple shell main function
- *
- * Return: Always 0 on success
- */
-int main(void)
-{
-    char *line;
-    char **args;
-    int status = 1; /* 1 to keep the shell running */
-
-    while (status)
-    {
-        printf("%s", PROMPT);
-        line = _getline();
-        if (line == NULL)
-        {
-            perror("Unable to read command. Exiting...\n");
-            exit(EXIT_FAILURE);
-        }
-
-        comments_handler(&line); /* Handle comments in the input */
-        args = split_line(line); /* Split the input line into arguments */
-
-        if (args[0] != NULL)
-        {
-            status = _execute(args, environ, 0);
-        }
-
-        free(line);
-        free2Darray(args); /* Free the memory allocated for arguments */
-    }
-
-    return 0;
-}
+int proc_file_commands(char *file_path, int *exe_ret);
+#endif /* _SHELL_H_ */
