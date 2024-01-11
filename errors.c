@@ -1,4 +1,3 @@
-errors.c
 #include "shell.h"
 
 /**

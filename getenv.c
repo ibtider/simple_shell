@@ -1,4 +1,3 @@
-getenv.c
 #include "shell.h"
 
 /**
